@@ -1,0 +1,18 @@
+{
+  "interval_seconds": 60,
+  "browser_timeout_seconds": 45,
+  "max_posts": 5,
+  "keywords": [],
+  "pages": [
+    {
+      "name": "Umamusume",
+      "url": "https://www.facebook.com/umamusume.eng",
+      "keywords": []
+    },
+    {
+      "name": "Facebook",
+      "url": "https://www.facebook.com/facebook",
+      "keywords": []
+    }
+  ]
+}
