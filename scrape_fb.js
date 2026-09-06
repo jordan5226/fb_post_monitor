@@ -10,8 +10,92 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+async function createConfiguredPage(browser) {
+    const page = await browser.newPage();
+
+    await page.setViewport({
+        width: 1080,
+        height: 1800
+    });
+
+    await page.setUserAgent(
+        "Mozilla/5.0 (Linux; Android 14; Mobile) " +
+        "AppleWebKit/537.36 (KHTML, like Gecko) " +
+        "Chrome/131.0.0.0 Mobile Safari/537.36"
+    );
+
+    await page.setRequestInterception(true);
+
+    page.on("request", request => {
+        if (["image", "media", "font"].includes(request.resourceType())) {
+            request.abort();
+        } else {
+            request.continue();
+        }
+    });
+
+    return page;
+}
+
+function isRetryableNavigationError(error) {
+    const message = String(error || "");
+
+    return (
+        message.includes("ERR_SOCKET_NOT_CONNECTED") ||
+        message.includes("ERR_CERT_VERIFIER_CHANGED") ||
+        message.includes("ERR_NAME_NOT_RESOLVED") ||
+        message.includes("ERR_CONNECTION_RESET") ||
+        message.includes("ERR_NETWORK_CHANGED") ||
+        message.includes("ERR_INTERNET_DISCONNECTED")
+    );
+}
+
+async function openPageWithRetry(browser, url, timeout, retries = 3) {
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        let page = null;
+
+        try {
+            page = await createConfiguredPage(browser);
+
+            await page.goto(url, {
+                waitUntil: "domcontentloaded",
+                timeout
+            });
+
+            return page;
+        } catch (error) {
+            lastError = error;
+
+            if (page) {
+                await page.close().catch(() => {});
+            }
+
+            if (!isRetryableNavigationError(error) || attempt >= retries) {
+                throw error;
+            }
+
+            const delayMs = attempt * 3000;
+
+            console.error(
+                `[RETRY] Navigation failed (${attempt}/${retries}): ` +
+                `${String(error && error.message ? error.message : error)}`
+            );
+            console.error(
+                `[RETRY] Waiting ${delayMs / 1000} seconds before retrying...`
+            );
+
+            await sleep(delayMs);
+        }
+    }
+
+    throw lastError;
+}
+
 (async () => {
     let browser = null;
+    let page = null;
 
     try {
         const executablePath =
@@ -34,33 +118,12 @@ function sleep(ms) {
             ]
         });
 
-        const page = await browser.newPage();
-
-        await page.setViewport({
-            width: 1080,
-            height: 1800
-        });
-
-        await page.setUserAgent(
-            "Mozilla/5.0 (Linux; Android 14; Mobile) " +
-            "AppleWebKit/537.36 (KHTML, like Gecko) " +
-            "Chrome/131.0.0.0 Mobile Safari/537.36"
+        page = await openPageWithRetry(
+            browser,
+            inputUrl,
+            timeout,
+            3
         );
-
-        await page.setRequestInterception(true);
-
-        page.on("request", request => {
-            if (["image", "media", "font"].includes(request.resourceType())) {
-                request.abort();
-            } else {
-                request.continue();
-            }
-        });
-
-        await page.goto(inputUrl, {
-            waitUntil: "domcontentloaded",
-            timeout
-        });
 
         await sleep(7000);
 
