@@ -7,6 +7,35 @@ import time
 import zlib
 from pathlib import Path
 
+_builtin_print = print
+
+
+def print(*args, **kwargs):
+    """Print every output line with an HH:MM:SS timestamp."""
+    sep = kwargs.pop("sep", " ")
+    end = kwargs.pop("end", "\n")
+    file = kwargs.pop("file", None)
+    flush = kwargs.pop("flush", True)
+
+    message = sep.join(str(arg) for arg in args)
+    lines = message.splitlines()
+
+    if not lines:
+        lines = [""]
+
+    for line in lines:
+        timestamp = time.strftime("%H:%M:%S")
+        _builtin_print(
+            f"[{timestamp}] {line}",
+            file=file,
+            flush=flush
+        )
+
+    extra_newlines = max(0, end.count("\n") - 1)
+    for _ in range(extra_newlines):
+        _builtin_print("", file=file, flush=flush)
+
+
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_FILE = BASE_DIR / "config.json"
 STATE_FILE = BASE_DIR / "state.json"
@@ -108,7 +137,7 @@ def scrape(url, timeout_seconds, max_posts):
 
     if not process.stdout.strip():
         raise RuntimeError(
-            f"Scraper returned no data，exit={process.returncode}"
+            f"Scraper returned no data, exit={process.returncode}"
         )
 
     try:
