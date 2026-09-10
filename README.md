@@ -57,8 +57,8 @@ You can override it with the `CHROMIUM_PATH` environment variable.
 Clone the repository:
 
 ```bash
-git clone <your-repository-url>
-cd <your-repository-directory>
+git clone https://github.com/jordan5226/fb_post_monitor.git
+cd fb_post_monitor
 ```
 
 Make the scripts executable:
